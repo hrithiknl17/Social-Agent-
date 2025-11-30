@@ -6,12 +6,13 @@ interface DiagramProps {
   className?: string;
 }
 
-const Diagram: React.FC<DiagramProps> = ({ alt = 'Flow Diagram', className = '' }) => {
+const Diagram: React.FC<DiagramProps> = ({ alt = 'Flow Diagram', className }) => {
   return (
     <img
       src={flowDiagram}
       alt={alt}
       className={className}
+      loading="lazy"
     />
   );
 };
