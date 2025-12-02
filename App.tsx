@@ -1,223 +1,255 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState } from 'react';
+import { generateSocialContent, generateImage } from './services/geminiService';
+import { SocialPostResult } from './types';
 import Header from './components/Header';
-import BlueprintCard from './components/BlueprintCard';
-import { AgentOrchestrator, ShopifyClient } from './services/stack';
-import { Product, AgentLog, GeneratedCampaign } from './types';
-import { Wand2, Loader2, Download, Terminal, Database, Brain, ShoppingBag } from 'lucide-react';
+import { 
+  Sparkles, 
+  Copy, 
+  Heart, 
+  MessageCircle, 
+  Share2, 
+  Bookmark,
+  Loader2,
+  Image as ImageIcon,
+  Wand2,
+  MoreHorizontal,
+  ArrowRight
+} from 'lucide-react';
 
 const App: React.FC = () => {
-  // State
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [logs, setLogs] = useState<AgentLog[]>([]);
-  const [campaign, setCampaign] = useState<GeneratedCampaign | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [blueprintMode, setBlueprintMode] = useState(false);
-  
-  // Refs
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const agentRef = useRef<AgentOrchestrator | null>(null);
+  const [topic, setTopic] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<SocialPostResult | null>(null);
+  const [selectedCaptionIndex, setSelectedCaptionIndex] = useState(0);
 
-  // Initialize
-  useEffect(() => {
-    const client = new ShopifyClient();
-    client.getProducts().then(setProducts);
-    
-    // Initialize Agent with a logger callback
-    agentRef.current = new AgentOrchestrator((log) => {
-      setLogs(prev => [...prev, log]);
-    });
-  }, []);
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topic.trim()) return;
 
-  // Auto-scroll logs
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
-
-  const handleGenerate = async () => {
-    if (!selectedProduct || !agentRef.current) return;
-    
-    setIsProcessing(true);
-    setLogs([]); // Clear logs
-    setCampaign(null);
+    setIsGenerating(true);
+    setResult(null); // Clear previous results
+    setSelectedCaptionIndex(0);
 
     try {
-      const result = await agentRef.current.runCampaignAgent(selectedProduct.id);
-      setCampaign(result);
+      const content = await generateSocialContent(topic);
+      const imageUrl = await generateImage(content.imagePrompt);
+      setResult({ ...content, generatedImageUrl: imageUrl });
     } catch (error) {
-      console.error(error);
+      console.error("Generation failed", error);
     } finally {
-      setIsProcessing(false);
+      setIsGenerating(false);
     }
   };
 
+  const currentCaption = result ? result.captions[selectedCaptionIndex] : null;
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-brand-500/30">
+    <div className="min-h-screen font-sans bg-dark-bg text-dark-text pb-20">
       <Header />
-      
-      <main className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-12">
         
-        {/* LEFT COLUMN: Input & Selection */}
-        <div className="space-y-8">
+        {/* Hero / Input Section */}
+        <div className="text-center max-w-2xl mx-auto mb-16 animate-slide-up">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+            Create viral posts in <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-purple-500">seconds</span>.
+          </h1>
+          <p className="text-dark-muted text-lg mb-8">
+            Describe your product or idea, and we'll generate the image, caption, and hashtags instantly.
+          </p>
           
-          <div className="relative">
-            <h1 className="text-5xl font-display font-bold mb-4 bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
-              AI Marketing Agent
-            </h1>
-            <p className="text-gray-400 text-lg">
-              Select a product to launch a full campaign. The agent will check past campaigns (Vector DB), generate content (LLM), and save results (Database).
-            </p>
-            
-            <button 
-              onClick={() => setBlueprintMode(!blueprintMode)}
-              className={`mt-4 px-4 py-2 rounded-full text-sm font-bold border transition-all ${blueprintMode ? 'bg-brand-600 border-brand-500 text-white' : 'border-gray-700 text-gray-400 hover:text-white'}`}
-            >
-              {blueprintMode ? 'Hide Architecture' : 'Show Architecture'}
-            </button>
-          </div>
-
-          {/* Product Selection */}
-          <div className="space-y-4 relative">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-brand-500" /> 
-              Select Product (Shopify API)
-            </h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {products.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedProduct(p)}
-                  className={`p-4 rounded-xl border text-left transition-all ${
-                    selectedProduct?.id === p.id 
-                      ? 'bg-brand-900/20 border-brand-500 ring-1 ring-brand-500' 
-                      : 'bg-gray-900 border-gray-800 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="font-bold text-white">{p.title}</div>
-                  <div className="text-sm text-gray-500">{p.price} • {p.category}</div>
-                </button>
-              ))}
+          <form onSubmit={handleGenerate} className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-600 to-purple-600 rounded-xl opacity-75 group-hover:opacity-100 transition duration-200 blur"></div>
+            <div className="relative flex items-center bg-dark-card rounded-xl overflow-hidden">
+              <input 
+                type="text" 
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g., A minimalist coffee shop in Tokyo..." 
+                className="flex-1 bg-transparent border-none outline-none px-6 py-5 text-lg text-white placeholder:text-dark-muted"
+                disabled={isGenerating}
+              />
+              <button 
+                type="submit"
+                disabled={!topic.trim() || isGenerating}
+                className="mr-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                <span>Generate</span>
+              </button>
             </div>
-
-            <BlueprintCard 
-              isVisible={blueprintMode}
-              title="Tool Usage"
-              description="The agent connects to external APIs (like Shopify) to fetch real-time data context."
-              techTerm="API Integration"
-              iconType="code"
-              className="top-0 right-0 translate-x-1/2"
-            />
-          </div>
-
-          {/* Action Button */}
-          <button
-            onClick={handleGenerate}
-            disabled={!selectedProduct || isProcessing}
-            className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
-              !selectedProduct || isProcessing
-                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                : 'bg-brand-600 hover:bg-brand-500 text-white hover:shadow-lg hover:shadow-brand-500/20'
-            }`}
-          >
-            {isProcessing ? <Loader2 className="animate-spin" /> : <Wand2 />}
-            {isProcessing ? 'Agent Working...' : 'Launch Campaign'}
-          </button>
-
-          {/* Agent Logs (The "Matrix" View) */}
-          <div className="bg-black rounded-xl border border-gray-800 p-6 font-mono text-sm h-64 overflow-y-auto relative custom-scrollbar">
-            <h4 className="text-gray-500 mb-4 flex items-center gap-2 sticky top-0 bg-black py-2 border-b border-gray-800">
-              <Terminal className="w-4 h-4" /> Agent Live Logs
-            </h4>
-            <div className="space-y-3">
-              {logs.map((log, i) => (
-                <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-left-2">
-                  <span className="text-gray-600">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                  <span className={`font-bold ${
-                    log.type === 'success' ? 'text-green-400' :
-                    log.type === 'warning' ? 'text-yellow-400' :
-                    log.type === 'error' ? 'text-red-400' : 'text-blue-400'
-                  }`}>
-                    [{log.step}]
-                  </span>
-                  <span className="text-gray-300">{log.message}</span>
-                </div>
-              ))}
-              <div ref={logsEndRef} />
-            </div>
-
-            <BlueprintCard 
-              isVisible={blueprintMode}
-              title="Orchestration Framework"
-              description="The 'Brain' coordinates steps: fetching data, checking Vector DB, calling LLM, and saving results."
-              techTerm="Agent Framework"
-              iconType="bot"
-              className="bottom-4 right-4 translate-x-1/2"
-            />
-          </div>
-
+          </form>
         </div>
 
-        {/* RIGHT COLUMN: Result */}
-        <div className="relative">
-          {campaign ? (
-            <div className="bg-gray-900 rounded-3xl overflow-hidden border border-gray-800 animate-in zoom-in-95 duration-500">
-              {/* Image */}
-              <div className="relative group">
-                <img src={campaign.imageUrl} alt="Campaign" className="w-full aspect-square object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-6 flex flex-col justify-end">
-                  <p className="text-white font-bold mb-2">AI Generated Visual</p>
-                  <button className="bg-white text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 w-fit">
-                    <Download className="w-4 h-4" /> Download
-                  </button>
-                </div>
-              </div>
+        {/* Results Section */}
+        {isGenerating && (
+          <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+             <div className="w-16 h-16 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+             <p className="text-dark-muted text-lg animate-pulse">Designing your creative assets...</p>
+          </div>
+        )}
 
-              {/* Content */}
-              <div className="p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-500 to-purple-500" />
-                  <div>
-                    <p className="font-bold">Social Spark</p>
-                    <p className="text-xs text-gray-400">Sponsored • {campaign.productName}</p>
+        {result && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 animate-slide-up">
+            
+            {/* LEFT: Phone Preview (The "Ad") */}
+            <div className="lg:col-span-5 flex justify-center">
+              <div className="w-[380px] bg-white rounded-[3rem] p-4 shadow-2xl border-8 border-gray-900 relative overflow-hidden">
+                {/* Dynamic Island / Notch */}
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-7 bg-black rounded-b-2xl z-20"></div>
+                
+                {/* Phone Screen */}
+                <div className="bg-white w-full h-full rounded-[2rem] overflow-hidden flex flex-col text-black h-[750px] relative">
+                  
+                  {/* Instagram Header */}
+                  <div className="px-4 pt-10 pb-3 flex items-center justify-between border-b border-gray-100">
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 to-purple-600 p-[2px]">
+                          <div className="w-full h-full rounded-full bg-white p-[2px]">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=SocialSpark" alt="Profile" className="w-full h-full rounded-full bg-gray-100" />
+                          </div>
+                        </div>
+                        <div className="flex flex-col leading-none">
+                          <span className="font-semibold text-sm">social_spark_ai</span>
+                          <span className="text-[10px] text-gray-500">Sponsored</span>
+                        </div>
+                     </div>
+                     <MoreHorizontal className="w-5 h-5 text-gray-900" />
+                  </div>
+
+                  {/* Post Image */}
+                  <div className="aspect-[4/5] bg-gray-100 relative group">
+                    <img src={result.generatedImageUrl} alt="Generated Content" className="w-full h-full object-cover" />
+                    
+                    {/* Sponsored Overlay Button */}
+                    <div className="absolute bottom-0 w-full bg-gray-900/80 backdrop-blur-sm p-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                       <span className="text-white text-sm font-medium">View Shop</span>
+                       <ArrowRight className="text-white w-4 h-4" />
+                    </div>
+                  </div>
+
+                  {/* Action Bar (Ad Style) */}
+                  <div className="px-4 py-3 flex items-center justify-between bg-white relative z-10">
+                    <div className="flex items-center gap-4">
+                      <Heart className="w-6 h-6 hover:text-red-500 cursor-pointer transition-colors" />
+                      <MessageCircle className="w-6 h-6 -rotate-90" />
+                      <Share2 className="w-6 h-6" />
+                    </div>
+                    <Bookmark className="w-6 h-6" />
+                  </div>
+                  
+                  {/* Call to Action Banner */}
+                  <div className="mx-4 mb-2 bg-blue-50 px-3 py-2 rounded flex justify-between items-center cursor-pointer hover:bg-blue-100 transition-colors">
+                     <span className="text-blue-700 text-xs font-semibold">Shop Now</span>
+                     <span className="text-blue-700 text-xs">socialspark.ai &gt;</span>
+                  </div>
+
+                  {/* Caption Area */}
+                  <div className="px-4 pb-8 flex-1 overflow-y-auto">
+                    <p className="text-sm font-semibold mb-1">1,248 likes</p>
+                    <p className="text-sm leading-relaxed">
+                      <span className="font-semibold mr-2">social_spark_ai</span>
+                      {currentCaption?.text}
+                    </p>
+                    <p className="text-brand-600 text-sm mt-2 leading-relaxed">
+                      {result.hashtags.map(t => `#${t.replace('#', '')} `)}
+                    </p>
+                    <p className="text-gray-400 text-[10px] uppercase mt-2">2 hours ago</p>
+                  </div>
+
+                  {/* Bottom Nav Mockup */}
+                  <div className="h-12 border-t border-gray-100 flex items-center justify-around px-2 text-gray-900">
+                    <div className="w-6 h-6 rounded bg-black"></div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <p className="text-gray-200 leading-relaxed whitespace-pre-wrap mb-6">
-                  {campaign.caption}
-                </p>
+            {/* RIGHT: Editor & Options */}
+            <div className="lg:col-span-7 space-y-8">
+              
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-6 h-6 text-brand-500" />
+                  Customization
+                </h2>
+                <button className="text-sm text-brand-500 hover:text-brand-400 font-medium">
+                  Export All Assets
+                </button>
+              </div>
 
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {campaign.hashtags.map(tag => (
-                    <span key={tag} className="text-brand-400 text-sm">#{tag}</span>
+              {/* Caption Selector */}
+              <div className="space-y-4">
+                <h3 className="text-dark-muted uppercase tracking-wider text-xs font-semibold">Select Caption Style</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  {result.captions.map((caption, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => setSelectedCaptionIndex(idx)}
+                      className={`cursor-pointer p-5 rounded-xl border transition-all duration-200 group relative ${
+                        selectedCaptionIndex === idx 
+                          ? 'bg-brand-900/20 border-brand-500 ring-1 ring-brand-500/50' 
+                          : 'bg-dark-card border-dark-border hover:border-dark-muted'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded ${
+                           selectedCaptionIndex === idx ? 'bg-brand-500 text-white' : 'bg-dark-border text-dark-muted'
+                        }`}>
+                          {caption.style}
+                        </span>
+                        {selectedCaptionIndex === idx && (
+                           <div className="w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
+                             <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                           </div>
+                        )}
+                      </div>
+                      <p className={`text-sm leading-relaxed ${selectedCaptionIndex === idx ? 'text-white' : 'text-dark-muted group-hover:text-white'}`}>
+                        {caption.text}
+                      </p>
+                    </div>
                   ))}
                 </div>
+              </div>
 
-                <div className="pt-6 border-t border-gray-800 flex justify-between text-xs text-gray-500">
-                  <span className="flex items-center gap-1"><Database className="w-3 h-3"/> Saved to Database</span>
-                  <span className="flex items-center gap-1"><Brain className="w-3 h-3"/> Indexed in Vector DB</span>
+              {/* Hashtag Cloud */}
+              <div className="bg-dark-card rounded-xl border border-dark-border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-dark-muted uppercase tracking-wider text-xs font-semibold">Optimized Hashtags</h3>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(result.hashtags.join(' '))}
+                    className="text-xs flex items-center gap-1 text-white hover:text-brand-500 transition-colors"
+                  >
+                    <Copy className="w-3 h-3" /> Copy All
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {result.hashtags.map((tag, i) => (
+                    <span 
+                      key={i} 
+                      className="px-3 py-1.5 rounded-full bg-dark-bg border border-dark-border text-dark-muted text-sm hover:text-brand-400 hover:border-brand-500/50 transition-colors cursor-pointer select-none"
+                    >
+                      #{tag.replace('#', '')}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <BlueprintCard 
-                isVisible={blueprintMode}
-                title="Database & Vector DB"
-                description="The final result is saved for future history, and its 'Embedding' is stored to prevent duplicates next time."
-                techTerm="Data Persistence"
-                iconType="db"
-                className="top-1/2 -left-4 -translate-x-full"
-              />
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center border-2 border-dashed border-gray-800 rounded-3xl bg-gray-900/50">
-              <div className="text-center text-gray-600">
-                <Brain className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                <p>Select a product and launch to see the result</p>
-              </div>
-            </div>
-          )}
-        </div>
+               {/* Image Prompt Info */}
+               <div className="bg-dark-card rounded-xl border border-dark-border p-6 opacity-75 hover:opacity-100 transition-opacity">
+                  <h3 className="text-dark-muted uppercase tracking-wider text-xs font-semibold mb-2 flex items-center gap-2">
+                    <ImageIcon className="w-3 h-3" />
+                    AI Image Prompt Used
+                  </h3>
+                  <p className="text-xs text-dark-muted italic">
+                    "{result.imagePrompt}"
+                  </p>
+               </div>
 
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -1,5 +1,4 @@
 import { Product, GeneratedCampaign, VectorDocument, AgentLog } from '../types';
-// Ensure geminiService exports these functions!
 import { generateCampaignContent, generateImage, getTextEmbedding } from './geminiService';
 
 // --- 1. API LAYER: Mock Shopify Client ---
