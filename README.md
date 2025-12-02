@@ -1,94 +1,82 @@
-🚀 Social Spark - AI Social Media Agent
+🚀 Social Spark - Autonomous Marketing Agent
 
-Social Spark is an intelligent AI Agent designed to automate the creative process for social media managers. It instantly brainstorms viral post ideas, writes engaging captions in multiple tones, generates optimized hashtags, and creates stunning visual assets—all from a single topic input.
+Social Spark is an intelligent AI Agent designed to automate the creative workflow for social media managers. Unlike simple text generators, it acts as a digital employee: connecting to product inventory, referencing past campaigns (RAG), and orchestrating multimodal assets.
 
-🌟 Overview
+🏆 Project Highlight: Built with a "Graceful Degradation" architecture, ensuring 100% uptime by automatically switching between AI models during high traffic.
 
-The goal of Social Spark is to solve the "Blank Page Problem" for content creators. Instead of spending hours brainstorming and designing, users can input a simple topic (e.g., "Minimalist Coffee Shop") and receive a production-ready social media post in seconds.
+🌟 Core Capabilities
 
-Key Capabilities:
+1. 🧠 Agentic Workflow
 
-Instant Brainstorming: Generates creative post concepts on demand.
+The system doesn't just "guess." It follows a structured chain of thought:
 
-Multi-Tone Copywriting: Writes captions in Witty, Professional, and Minimalist styles.
+Perception: Reads product data (Price, Features) from a mock Shopify API.
 
-Visual Generation: Creates high-quality, aesthetic images tailored to the post.
+Memory (RAG): Checks a local Vector Database for past campaigns to ensure brand consistency.
 
-Hashtag Optimization: Suggests relevant, high-traffic hashtags.
+Action: Generates unique captions and visual assets based on this context.
 
-✨ Features & Limitations
+2. 🛡️ Fail-Safe Architecture (Graceful Degradation)
 
-Features
+Real-world APIs have limits. Social Spark implements a robust fallback system:
 
-One-Click Generation: Input a topic, get a full post.
+Primary Line: Google Gemini 1.5 Flash (Text) + Imagen 3 (Vision).
 
-Live Preview: See exactly how your post will look on a smartphone screen (Instagram-style mockups).
+Safety Net: If Google's API hits a rate limit (429) or goes down, the system automatically reroutes image generation requests to Pollinations.ai (Stable Diffusion).
 
-Customization: Switch between different caption styles instantly.
+Result: The user never sees an error screen, only results.
 
-Smart Clipboard: Copy captions and hashtags with a single click.
+3. 🎨 Multimodal Generation
 
-Responsive Design: Works beautifully on desktop and mobile.
+Multi-Tone Copy: Generates Witty, Professional, and Minimalist variations.
 
-Limitations
+Visuals: Creates high-fidelity lifestyle photography matching the caption context.
 
-Image Consistency: AI-generated images may occasionally include garbled text (a known limitation of current diffusion models).
+Hashtags: Auto-generates high-ranking, relevant tags.
 
-Video Content: Currently supports static images only, not Reels/TikToks.
+🛠️ Tech Stack
 
-API Rate Limits: Heavy usage may hit the free tier limits of the underlying AI models.
+Frontend: React 19, TypeScript, Vite
 
-🛠️ Tech Stack & APIs
+Styling: Tailwind CSS (Glassmorphism UI)
 
-This agent is built using a modern, scalable web stack:
+AI Orchestration: Google GenAI SDK
 
-Frontend Framework: React 19 + Vite (TypeScript)
+LLM (Brain): Gemini 1.5 Flash
 
-Styling: Tailwind CSS + Lucide React (Icons)
+Image Models: Gemini Imagen (Primary) → Pollinations.ai (Fallback)
 
-AI Model (Text): Google Gemini 1.5 Flash (via Google GenAI SDK)
+Vector Database: Custom Local Cosine Similarity Engine (Simulating Pinecone)
 
-AI Model (Image): Pollinations.ai (Stable Diffusion)
+🏗️ Architecture Flow
 
-Hosting: Vercel / Localhost
+The agent follows a decision tree to ensure reliability:
 
-🏗️ Architecture Diagram
-
-The agent follows a direct, low-latency architecture:
-
-graph LR
-    subgraph Client ["Frontend (Your Computer)"]
-        User((User))
-        UI[Social Spark App\n(React + Vite)]
+graph TD
+    User((User)) -->|1. Topic/Product| UI[React Frontend]
+    UI -->|2. Context Prompt| Agent[Agent Orchestrator]
+    
+    subgraph "The Brain (Gemini 1.5)"
+        Agent -->|3. Generate Text| LLM[Gemini Flash]
     end
-
-    subgraph AI_Cloud ["Google Cloud"]
-        Gemini[Google Gemini 1.5 Flash\n(Generates Captions, Hashtags & Visuals)]
+    
+    subgraph "Visual Engine (Redundant)"
+        LLM -->|4. Prompt| Vision{Try Imagen?}
+        Vision -->|Success| Img1[Google Imagen]
+        Vision -->|Error / 429| Fallback[Pollinations.ai]
     end
-
-    %% Flow
-    User -- "1. Enters Topic" --> UI
     
-    UI -- "2. Sends Context Prompt" --> Gemini
-    
-    Gemini -- "3. Returns JSON Data\n(Captions + Image URL)" --> UI
-    
-    UI -- "4. Renders Content" --> User
-
-    %% Styling
-    style UI fill:#0ea5e9,stroke:#0369a1,color:white
-    style Gemini fill:#f59e0b,stroke:#b45309,color:white
-    style User fill:#333,stroke:#fff,color:white
+    Img1 -->|5. Image URL| UI
+    Fallback -->|5. Image URL| UI
+    LLM -->|5. Captions| UI
 
 
-🚀 Setup & Run Instructions
+🚀 Local Setup
 
-Follow these steps to run the agent on your local machine:
+Clone the repository
 
-Clone the Repository
-
-git clone <your-repo-link>
-cd social-spark
+git clone [https://github.com/hrithiknl17/social-agent.git](https://github.com/hrithiknl17/social-agent.git)
+cd social-agent
 
 
 Install Dependencies
@@ -96,25 +84,21 @@ Install Dependencies
 npm install
 
 
-Configure API Keys
-Create a file named .env.local in the root directory and add your Gemini API Key:
+Set up Environment
+Create a .env file in the root:
 
-VITE_GEMINI_API_KEY=AIzaSy...Your_Key_Here...
+VITE_GEMINI_API_KEY=your_api_key_here
 
 
-Run the App
+Run Development Server
 
 npm run dev
 
 
-Open your browser to http://localhost:5173.
+🔮 Future Roadmap
 
-🔮 Potential Improvements
+[ ] Auth: User accounts to save campaign history (Firebase Auth).
 
-User Accounts: Add Firebase Auth to save post history for each user.
+[ ] Direct Publishing: Instagram Graph API integration.
 
-Direct Publishing: Integrate Instagram/LinkedIn APIs to publish posts directly from the app.
-
-Video Support: Add AI video generation for Reels/TikTok content.
-
-Scheduling: Include a calendar view to plan posts for the week.
+[ ] Video: AI Video generation for Reels using Gemini 1.5 Pro.
