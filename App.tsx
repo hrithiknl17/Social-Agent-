@@ -52,7 +52,8 @@ const App: React.FC = () => {
   // Memoize hashtag string to avoid repeated array operations
   const hashtagString = useMemo(() => {
     if (!result) return '';
-    return result.hashtags.map(t => `#${t.replace('#', '')}`).join(' ');
+    // Ensure hashtags are properly formatted and join them
+    return result.hashtags.map(t => t.startsWith('#') ? t : `#${t}`).join(' ');
   }, [result]);
 
   const handleCopyHashtags = useCallback(() => {

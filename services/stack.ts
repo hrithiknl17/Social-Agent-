@@ -117,14 +117,13 @@ export class ContentDatabase {
   private saveTimeout: NodeJS.Timeout | null = null;
 
   async saveCampaign(campaign: GeneratedCampaign): Promise<void> {
-    const current = await this.getCampaigns();
-    current.unshift(campaign);
-    
     // Debounce to avoid blocking on every save
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
     }
-    this.saveTimeout = setTimeout(() => {
+    this.saveTimeout = setTimeout(async () => {
+      const current = await this.getCampaigns();
+      current.unshift(campaign);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(current));
     }, 300);
   }

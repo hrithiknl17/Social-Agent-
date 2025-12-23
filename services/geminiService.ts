@@ -144,7 +144,7 @@ export const generateSocialContent = async (topic: string): Promise<SocialPostRe
 };
 
 /**
- * Generates a stable cache key from a prompt using a simple hash
+ * Generates a stable cache key from a prompt using a simple hash with length suffix
  */
 const hashPrompt = (prompt: string): string => {
   let hash = 0;
@@ -153,7 +153,8 @@ const hashPrompt = (prompt: string): string => {
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
-  return hash.toString(36);
+  // Include length to reduce collision probability for similar prompts
+  return `${hash.toString(36)}_${prompt.length}`;
 };
 
 /**
