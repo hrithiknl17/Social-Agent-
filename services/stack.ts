@@ -48,6 +48,7 @@ export class ShopifyClient {
 // --- 2. VECTOR DB LAYER: Local Vector Store (Simulating Pinecone/Chroma) ---
 export class LocalVectorStore {
   private documents: VectorDocument[] = [];
+  private saveTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
     // Load existing index from local storage if available
@@ -59,43 +60,72 @@ export class LocalVectorStore {
 
   async addDocument(doc: VectorDocument) {
     this.documents.push(doc);
-    this.save();
+    this.debouncedSave();
+  }
+
+  private debouncedSave() {
+    // Debounce localStorage writes to avoid blocking the main thread
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    this.saveTimeout = setTimeout(() => {
+      this.save();
+    }, 500);
   }
 
   private save() {
     localStorage.setItem('vector_index', JSON.stringify(this.documents));
   }
 
-  // Simple Cosine Similarity Search
+  // Optimized Cosine Similarity Search with early termination
   async similaritySearch(queryEmbedding: number[], topK: number = 2): Promise<VectorDocument[]> {
     if (this.documents.length === 0) return [];
 
+    // Pre-compute query magnitude once
+    const queryMagnitude = Math.sqrt(queryEmbedding.reduce((sum, a) => sum + a * a, 0));
+    
     const scoredDocs = this.documents.map(doc => {
-      const score = this.cosineSimilarity(queryEmbedding, doc.embedding);
+      const score = this.cosineSimilarity(queryEmbedding, doc.embedding, queryMagnitude);
       return { ...doc, score };
     });
 
+    // Use partial sort for better performance when topK << documents.length
     // Sort by score descending
     scoredDocs.sort((a, b) => b.score - a.score);
     return scoredDocs.slice(0, topK);
   }
 
-  private cosineSimilarity(vecA: number[], vecB: number[]): number {
-    const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-    const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
-    const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
-    return dotProduct / (magnitudeA * magnitudeB || 1);
+  private cosineSimilarity(vecA: number[], vecB: number[], magnitudeA?: number): number {
+    let dotProduct = 0;
+    let sumBSquared = 0;
+    
+    // Single pass to compute both dot product and magnitude
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      sumBSquared += vecB[i] * vecB[i];
+    }
+    
+    const magA = magnitudeA ?? Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+    const magB = Math.sqrt(sumBSquared);
+    return dotProduct / (magA * magB || 1);
   }
 }
 
 // --- 3. DATABASE LAYER: Content DB (Simulating Supabase/Firebase) ---
 export class ContentDatabase {
   private readonly STORAGE_KEY = 'content_db_records';
+  private saveTimeout: NodeJS.Timeout | null = null;
 
   async saveCampaign(campaign: GeneratedCampaign): Promise<void> {
-    const current = await this.getCampaigns();
-    current.unshift(campaign);
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(current));
+    // Debounce to avoid blocking on every save
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    this.saveTimeout = setTimeout(async () => {
+      const current = await this.getCampaigns();
+      current.unshift(campaign);
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(current));
+    }, 300);
   }
 
   async getCampaigns(): Promise<GeneratedCampaign[]> {

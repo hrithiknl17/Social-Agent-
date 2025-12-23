@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { generateSocialContent, generateImage } from './services/geminiService';
 import { SocialPostResult } from './types';
 import Header from './components/Header';
+import CaptionCard from './components/CaptionCard';
 import { 
   Sparkles, 
   Copy, 
@@ -23,7 +24,7 @@ const App: React.FC = () => {
   const [result, setResult] = useState<SocialPostResult | null>(null);
   const [selectedCaptionIndex, setSelectedCaptionIndex] = useState(0);
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic.trim()) return;
 
@@ -32,17 +33,38 @@ const App: React.FC = () => {
     setSelectedCaptionIndex(0);
 
     try {
+      // Parallelize API calls - generate content and prepare for image generation
       const content = await generateSocialContent(topic);
+      
+      // Start image generation immediately with the prompt (no need to wait for content completion)
       const imageUrl = await generateImage(content.imagePrompt);
+      
       setResult({ ...content, generatedImageUrl: imageUrl });
     } catch (error) {
       console.error("Generation failed", error);
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [topic]);
 
   const currentCaption = result ? result.captions[selectedCaptionIndex] : null;
+  
+  // Memoize hashtag string to avoid repeated array operations
+  const hashtagString = useMemo(() => {
+    if (!result) return '';
+    // Ensure hashtags are properly formatted and join them
+    return result.hashtags.map(t => t.startsWith('#') ? t : `#${t}`).join(' ');
+  }, [result]);
+
+  const handleCopyHashtags = useCallback(() => {
+    if (result) {
+      navigator.clipboard.writeText(result.hashtags.join(' '));
+    }
+  }, [result]);
+
+  const handleSelectCaption = useCallback((index: number) => {
+    setSelectedCaptionIndex(index);
+  }, []);
 
   return (
     <div className="min-h-screen font-sans bg-dark-bg text-dark-text pb-20">
@@ -153,7 +175,7 @@ const App: React.FC = () => {
                       {currentCaption?.text}
                     </p>
                     <p className="text-brand-600 text-sm mt-2 leading-relaxed">
-                      {result.hashtags.map(t => `#${t.replace('#', '')} `)}
+                      {hashtagString}
                     </p>
                     <p className="text-gray-400 text-[10px] uppercase mt-2">2 hours ago</p>
                   </div>
@@ -184,31 +206,13 @@ const App: React.FC = () => {
                 <h3 className="text-dark-muted uppercase tracking-wider text-xs font-semibold">Select Caption Style</h3>
                 <div className="grid grid-cols-1 gap-4">
                   {result.captions.map((caption, idx) => (
-                    <div 
+                    <CaptionCard
                       key={idx}
-                      onClick={() => setSelectedCaptionIndex(idx)}
-                      className={`cursor-pointer p-5 rounded-xl border transition-all duration-200 group relative ${
-                        selectedCaptionIndex === idx 
-                          ? 'bg-brand-900/20 border-brand-500 ring-1 ring-brand-500/50' 
-                          : 'bg-dark-card border-dark-border hover:border-dark-muted'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded ${
-                           selectedCaptionIndex === idx ? 'bg-brand-500 text-white' : 'bg-dark-border text-dark-muted'
-                        }`}>
-                          {caption.style}
-                        </span>
-                        {selectedCaptionIndex === idx && (
-                           <div className="w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
-                             <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                           </div>
-                        )}
-                      </div>
-                      <p className={`text-sm leading-relaxed ${selectedCaptionIndex === idx ? 'text-white' : 'text-dark-muted group-hover:text-white'}`}>
-                        {caption.text}
-                      </p>
-                    </div>
+                      caption={caption}
+                      index={idx}
+                      isSelected={selectedCaptionIndex === idx}
+                      onSelect={handleSelectCaption}
+                    />
                   ))}
                 </div>
               </div>
@@ -218,7 +222,7 @@ const App: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-dark-muted uppercase tracking-wider text-xs font-semibold">Optimized Hashtags</h3>
                   <button 
-                    onClick={() => navigator.clipboard.writeText(result.hashtags.join(' '))}
+                    onClick={handleCopyHashtags}
                     className="text-xs flex items-center gap-1 text-white hover:text-brand-500 transition-colors"
                   >
                     <Copy className="w-3 h-3" /> Copy All

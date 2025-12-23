@@ -40,7 +40,11 @@ const getMockSocialResult = (topic: string): SocialPostResult => {
   const titleCase = t.charAt(0).toUpperCase() + t.slice(1);
   
   // Use Pollinations AI for relevant fallback images based on topic
-  const fallbackImage = `https://image.pollinations.ai/prompt/${encodeURIComponent(t + " aesthetic social media photography high quality")}?width=1080&height=1350&nologo=true`;
+  const encodedTopic = encodeURIComponent(t + " aesthetic social media photography high quality");
+  const fallbackImage = `https://image.pollinations.ai/prompt/${encodedTopic}?width=1080&height=1350&nologo=true`;
+
+  // Pre-compute hashtag to avoid repeated replace operations
+  const baseHashtag = titleCase.replace(/\s/g, '');
 
   return {
     captions: [
@@ -57,7 +61,7 @@ const getMockSocialResult = (topic: string): SocialPostResult => {
         text: `${titleCase}. Pure and simple.`
       }
     ],
-    hashtags: [`#${titleCase.replace(/\s/g, '')}`, `#Love${titleCase.replace(/\s/g, '')}`, "#Trending", "#Inspiration", "#DailyGrind", "#Viral", "#ExplorePage"],
+    hashtags: [`#${baseHashtag}`, `#Love${baseHashtag}`, "#Trending", "#Inspiration", "#DailyGrind", "#Viral", "#ExplorePage"],
     imagePrompt: `A high-quality, professional photograph of ${t}, cinematic lighting, 4k resolution, trending on artstation`,
     generatedImageUrl: fallbackImage
   };
@@ -69,10 +73,11 @@ const getMockSocialResult = (topic: string): SocialPostResult => {
  * Generates social media content (captions, hashtags, image prompt) from a text topic
  */
 export const generateSocialContent = async (topic: string): Promise<SocialPostResult> => {
-  // 1. Check Cache first
-  if (contentCache.has(topic.toLowerCase())) {
+  // 1. Check Cache first - use normalized lowercase key for better hit rate
+  const cacheKey = topic.trim().toLowerCase();
+  if (contentCache.has(cacheKey)) {
     console.log("Serving from cache (Saving Quota!)");
-    return contentCache.get(topic.toLowerCase())!;
+    return contentCache.get(cacheKey)!;
   }
 
   const prompt = `
@@ -119,8 +124,8 @@ export const generateSocialContent = async (topic: string): Promise<SocialPostRe
 
     const result = JSON.parse(response.text || "{}");
     
-    // 3. Save to Cache
-    contentCache.set(topic.toLowerCase(), result);
+    // 3. Save to Cache with normalized key
+    contentCache.set(cacheKey, result);
     
     return result;
   } catch (error: any) {
@@ -130,7 +135,7 @@ export const generateSocialContent = async (topic: string): Promise<SocialPostRe
     if (error.status === 429 || error.message?.includes('429')) {
        console.warn("Using Mock Data Fallback due to Quota Limit.");
        const mockResult = getMockSocialResult(topic);
-       contentCache.set(topic.toLowerCase(), mockResult);
+       contentCache.set(cacheKey, mockResult);
        return mockResult;
     }
     
@@ -139,11 +144,25 @@ export const generateSocialContent = async (topic: string): Promise<SocialPostRe
 };
 
 /**
+ * Generates a stable cache key from a prompt using a simple hash with length suffix
+ */
+const hashPrompt = (prompt: string): string => {
+  let hash = 0;
+  for (let i = 0; i < prompt.length; i++) {
+    const char = prompt.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  // Include length to reduce collision probability for similar prompts
+  return `${hash.toString(36)}_${prompt.length}`;
+};
+
+/**
  * Generates an image from a prompt with specific error handling for Quotas
  */
 export const generateImage = async (prompt: string): Promise<string> => {
-  // 1. Check Cache
-  const cacheKey = prompt.substring(0, 50); // Use first 50 chars as key
+  // 1. Check Cache with stable hash key
+  const cacheKey = hashPrompt(prompt);
   if (imageCache.has(cacheKey)) {
     return imageCache.get(cacheKey)!;
   }
