@@ -8,7 +8,7 @@ interface IdeaCardProps {
   disabled: boolean;
 }
 
-const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, disabled }) => {
+const IdeaCard: React.FC<IdeaCardProps> = React.memo(({ idea, onSelect, disabled }) => {
   return (
     <button
       onClick={() => onSelect(idea)}
@@ -35,6 +35,8 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, disabled }) => {
       </div>
     </button>
   );
-};
+});
+
+IdeaCard.displayName = 'IdeaCard';
 
 export default IdeaCard;

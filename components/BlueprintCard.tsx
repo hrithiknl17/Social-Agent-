@@ -10,7 +10,7 @@ interface BlueprintCardProps {
   className?: string;
 }
 
-const BlueprintCard: React.FC<BlueprintCardProps> = ({ isVisible, title, description, techTerm, iconType = 'code', className = '' }) => {
+const BlueprintCard: React.FC<BlueprintCardProps> = React.memo(({ isVisible, title, description, techTerm, iconType = 'code', className = '' }) => {
   if (!isVisible) return null;
 
   const getIcon = () => {
@@ -41,6 +41,8 @@ const BlueprintCard: React.FC<BlueprintCardProps> = ({ isVisible, title, descrip
       </div>
     </div>
   );
-};
+});
+
+BlueprintCard.displayName = 'BlueprintCard';
 
 export default BlueprintCard;
